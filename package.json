@@ -1,7 +1,7 @@
 {
-  "name": "homebridge-http-humidity-sensor",
-  "version": "1.0.8",
-  "description": "Http humidity sensor for Homebridge",
+  "name": "homebridge-http-temperature-sensor-withhistory",
+  "version": "t1.0.10",
+  "description": "Http temperature sensor for Homebridge with history",
   "license": "ISC",
   "keywords": [
     "homebridge-plugin"
@@ -11,17 +11,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Supereg/homebridge-http-humidity-sensor"
+    "url": "https://github.com/ChristopheG666/homebridge-http-temperature-sensor"
   },
   "bugs": {
-    "url": "https://github.com/Supereg/homebridge-http-humidity-sensor/issues"
+    "url": "https://github.com/ChristopheG666/homebridge-http-temperature-sensor/issues"
   },
   "engines": {
     "node": ">=10.17.0",
-    "homebridge": ">=0.4.8"
+    "homebridge": ">=0.4.0"
   },
   "dependencies": {
-    "homebridge-http-base": "~2.1.12"
+    "fakegato-history": "^0.6.3",
+    "homebridge-http-base": "~2.1.12",
+    "underscore": "1.x",
+    "request": "2.x",
+    "moment": "^2.18.1"
   },
   "devDependencies": {
     "homebridge": "^1.3.5"
