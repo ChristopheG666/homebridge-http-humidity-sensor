@@ -210,16 +210,16 @@ module.exports = function (homebridge) {
                         try {
                             id = utils.extractValueFromPattern(this.statusPatternId, body, this.patternGroupToExtract);
                         } catch (error) {
-                            this.log("getSensors() error occurred while extracting id from body: " + error.message);
+                            this.log("updateWeatherConditions() error occurred while extracting id from body: " + error.message);
                         }
                     }
 
                     if (this.statusPatternTime) {
                         try {
                             time = new Date(utils.extractValueFromPattern(this.statusPatternTime, body, this.patternGroupToExtract));
-                            this.log("using " + this.statusPatternTime + " => " + time);
+//                            this.log("using " + this.statusPatternTime + " => " + time);
                         } catch (error) {
-                            this.log("getSensors() error occurred while extracting time from body: " + error.message);
+                            this.log("updateWeatherConditions() error occurred while extracting time from body: " + error.message);
                         }
                     }
 
@@ -227,7 +227,7 @@ module.exports = function (homebridge) {
                         try {
                             temperature = utils.extractValueFromPattern(this.statusPatternTemp, body, this.patternGroupToExtract);
                         } catch (error) {
-                            this.log("getSensors() error occurred while extracting temperature from body: " + error.message);
+                            this.log("updateWeatherConditions() error occurred while extracting temperature from body: " + error.message);
                         }
                     }
 
@@ -235,7 +235,7 @@ module.exports = function (homebridge) {
                         try {
                             humidity = utils.extractValueFromPattern(this.statusPatternHumidity, body, this.patternGroupToExtract);
                         } catch (error) {
-                            this.log("getSensors() error occurred while extracting humidity from body: " + error.message);
+                            this.log("updateWeatherConditions() error occurred while extracting humidity from body: " + error.message);
                         }
                     }
 
@@ -243,7 +243,7 @@ module.exports = function (homebridge) {
                         try {
                             battery = utils.extractValueFromPattern(this.statusPatternBattery, body, this.patternGroupToExtract);
                         } catch (error) {
-                            this.log("getSensors() error occurred while extracting battery from body: " + error.message);
+                            this.log("updateWeatherConditions() error occurred while extracting battery from body: " + error.message);
                         }
                     }
 
@@ -252,8 +252,10 @@ module.exports = function (homebridge) {
                             time, time.getTime()/1000, id, temperature, humidity, battery);
 
                    if (id == that.id) {
-                       this.log("Measure is the same, do not update history");
-                       return;
+                       if (this.debug) {
+                           this.log("Measure is the same, do not update history");
+                           return;
+                       }
                    }
 
                     that.id = id;
