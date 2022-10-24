@@ -1,6 +1,5 @@
 /*jshint esversion: 6,node: true,-W041: false */
 "use strict";
-const moment = require('moment');
 var inherits = require('util').inherits;
 var Service, Characteristic;
 var weatherStationService;
@@ -67,23 +66,31 @@ module.exports = function (homebridge) {
                 this.log.warn("Abort'");
                 return;
             }
-             try {
-        if (config.statusPatternTemp)
-            this.statusPatternTemp = configParser.parsePattern(config.statusPatternTemp);
-        } catch (error) {
-            this.log.warn("Property 'statusPatternTemp' was given in an unsupported type. Using default one!");
+        
+        try {
+                this.statusPatternId = configParser.parsePattern(config.statusPatternId);
+            } catch (error) {
+                this.log.warn("Property 'statusPatternId' was given in an unsupported type. Using default one!");
         }
         try {
-            if (config.statusPatternHumidity)
+                this.statusPatternTime = configParser.parsePattern(config.statusPatternTime);
+            } catch (error) {
+                this.log.warn("Property 'statusPatternTime' was given in an unsupported type. Using default one!");
+        }
+        try {
+                this.statusPatternTemp = configParser.parsePattern(config.statusPatternTemp);
+            } catch (error) {
+                this.log.warn("Property 'statusPatternTemp' was given in an unsupported type. Using default one!");
+        }
+        try {
                 this.statusPatternHumidity = configParser.parsePattern(config.statusPatternHumidity);
-        } catch (error) {
-            this.log.warn("Property 'statusPatternHumidity' was given in an unsupported type. Using default one!");
+            } catch (error) {
+                this.log.warn("Property 'statusPatternHumidity' was given in an unsupported type. Using default one!");
         }
         try {
-            if (config.statusPatternBattery)
                 this.statusPatternBattery = configParser.parsePattern(config.statusPatternBattery);
-        } catch (error) {
-            this.log.warn("Property 'statusPatternBattery' was given in an unsupported type. Using default one!");
+            } catch (error) {
+                this.log.warn("Property 'statusPatternBattery' was given in an unsupported type. Using default one!");
         }
 
 
@@ -127,6 +134,28 @@ module.exports = function (homebridge) {
         this.weatherStationService.getCharacteristic(Characteristic.CurrentTemperature).on("get", this.getTemperature.bind(this));
 
         this.loggingService = new FakeGatoHistoryService("weather", this, { storage: 'fs', disableTimer: true });    
+
+        this.tempService = new Service.TemperatureSensor(this.name);
+        this.tempService.getCharacteristic(Characteristic.CurrentTemperature)
+        .setProps({
+                    minValue: -100,
+                    maxValue: 100
+                })
+        .on("get", this.getTemperature.bind(this));
+
+        this.tempService = new Service.TemperatureSensor(this.name);
+        this.tempService.getCharacteristic(Characteristic.CurrentTemperature)
+        .setProps({
+                    minValue: -100,
+                    maxValue: 100
+                })
+        .on("get", this.getTemperature.bind(this));
+         this.humidityService = new Service.HumiditySensor(this.name);
+        this.humidityService.getCharacteristic(Characteristic.CurrentRelativeHumidity)
+        .on("get", this.getHumidity.bind(this));
+        
+        this.lastUpdate = new Date(0);
+        ;
         this.updateWeatherConditions();
     }
 
@@ -137,7 +166,7 @@ module.exports = function (homebridge) {
         },
 
         getServices: function () {
-            return [this.informationService, this.weatherStationService, this.loggingService];
+            return [this.informationService, this.tempService, this.humidityService, this.weatherStationService, this.loggingService];
         },
 
         getTemperature: function (callback) {
@@ -145,15 +174,55 @@ module.exports = function (homebridge) {
             callback(null, this.temperature);
         },
 
+        getHumidity: function (callback) {
+            this.updateWeatherConditions();
+            callback(null, this.humidity);
+        },
+
         updateWeatherConditions: function () {
             var that = this;
 
+            let endTime = new Date();
+            var timeDiff = endTime - this.lastUpdate; //in ms
+            // strip the ms
+            timeDiff /= 1000;
+
+            if (this.debug)
+                this.log.debug('updateWeatherConditions (last update since: ' + timeDiff + ')');
+
+            if (timeDiff < this.pullInterval * 60) {
+                if (this.debug)
+                    this.log(`getSensors() returning cached value ` + that.temperature);
+                return;
+            }
+
+            this.lastUpdate = new Date();
             http.httpRequest(this.getUrl, (error, response, body) => {           
                 if (!error) {
                   
+                    let id = -666;
+                    let time = new Date();
                     let temperature = -666;
                     let humidity = -666;
                     let battery  = -666;
+
+                    if (this.statusPatternId) {
+                        try {
+                            id = utils.extractValueFromPattern(this.statusPatternId, body, this.patternGroupToExtract);
+                        } catch (error) {
+                            this.log("getSensors() error occurred while extracting id from body: " + error.message);
+                        }
+                    }
+
+                    if (this.statusPatternTime) {
+                        try {
+                            time = new Date(utils.extractValueFromPattern(this.statusPatternTime, body, this.patternGroupToExtract));
+                            this.log("using " + this.statusPatternTime + " => " + time);
+                        } catch (error) {
+                            this.log("getSensors() error occurred while extracting time from body: " + error.message);
+                        }
+                    }
+
                     if (this.statusPatternTemp) {
                         try {
                             temperature = utils.extractValueFromPattern(this.statusPatternTemp, body, this.patternGroupToExtract);
@@ -179,8 +248,15 @@ module.exports = function (homebridge) {
                     }
 
                     if (this.debug)
-                        this.log("Temperature is currently at %s, humidity is currently at %s, battery is %s", temperature, humidity, battery);
+                        this.log("Time: %s (%s), id: %s Temperature is currently at %s, humidity is currently at %s, battery is %s", 
+                            time, time.getTime()/1000, id, temperature, humidity, battery);
 
+                   if (id == that.id) {
+                       this.log("Measure is the same, do not update history");
+                       return;
+                   }
+
+                    that.id = id;
                     that.temperature = temperature;
                     that.humidity = humidity;
                     that.airPressure = battery;
@@ -189,7 +265,7 @@ module.exports = function (homebridge) {
                     that.weatherStationService.setCharacteristic(Characteristic.CurrentRelativeHumidity, that.humidity);
                     that.weatherStationService.setCharacteristic(CustomCharacteristic.AirPressure, that.airPressure);
                     
-                    that.loggingService.addEntry({ time: moment().unix(), temp: that.temperature, pressure: that.airPressure, humidity: that.humidity });
+                    that.loggingService.addEntry({ time:  time.getTime()/1000, temp: that.temperature, pressure: that.airPressure, humidity: that.humidity });
 
                 } else {
                     that.log.debug("Error retrieving the weather conditions: %s", error);
