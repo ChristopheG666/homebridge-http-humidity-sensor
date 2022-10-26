@@ -155,7 +155,10 @@ module.exports = function (homebridge) {
         .on("get", this.getHumidity.bind(this));
         
         this.lastUpdate = new Date(0);
-        ;
+        
+        this.tzoffset = (new Date()).getTimezoneOffset() * 60000;
+        this.log.debug('tzoffset = ' + this.tzoffset);
+
         this.updateWeatherConditions();
     }
 
@@ -216,8 +219,7 @@ module.exports = function (homebridge) {
 
                     if (this.statusPatternTime) {
                         try {
-                            time = new Date(utils.extractValueFromPattern(this.statusPatternTime, body, this.patternGroupToExtract));
-//                            this.log("using " + this.statusPatternTime + " => " + time);
+                            time = new Date(new Date(utils.extractValueFromPattern(this.statusPatternTime, body, this.patternGroupToExtract)).getTime() - this.tzoffset);
                         } catch (error) {
                             this.log("updateWeatherConditions() error occurred while extracting time from body: " + error.message);
                         }
